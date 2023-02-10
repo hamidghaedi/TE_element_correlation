@@ -3,8 +3,8 @@
 ```R
 # read repeat masker data
 # getting TEs
-rmk = readRDS("~/LINE1-BLCA/rmsk_annotation.RDS")
-intrestedElelements = rmk$repName[rmk$repClass %in% c("LINE", "SINE", "LTR","DNA", "Retroposon")]
+rmk <- readRDS("~/LINE1-BLCA/rmsk_annotation.RDS")
+intrestedElelements <- rmk$repName[rmk$repClass %in% c("LINE", "SINE", "LTR","DNA", "Retroposon")]
 
 # save a subset for later 
 rmkSub <- rmk[rmk$repClass %in% c("LINE", "SINE", "LTR","DNA", "Retroposon"),]
@@ -21,25 +21,25 @@ teExpU <- readRDS("~/LINE1-BLCA/UROMOL_final/RE_all_1_raw_counts.RDS")
 # intergenic
 IntGenTeExpU <- readRDS("~/LINE1-BLCA/UROMOL_final/RE_intergenic_1_raw_counts.RDS")
 IntGenTeExpU <- IntGenTeExpU$counts
-IntGenTeExpU = IntGenTeExpU[rownames(IntGenTeExpU) %in% intrestedElelements,]
+IntGenTeExpU <- IntGenTeExpU[rownames(IntGenTeExpU) %in% intrestedElelements,]
 
 # exonic
 exTeExpU <- readRDS("~/LINE1-BLCA/UROMOL_final/RE_exon_1_raw_counts.RDS")
 exTeExpU <- exTeExpU$counts
-exTeExpU = exTeExpU[rownames(exTeExpU) %in% intrestedElelements,]
+exTeExpU <- exTeExpU[rownames(exTeExpU) %in% intrestedElelements,]
 
 # intronic
 IntronTeExpU <- readRDS("~/LINE1-BLCA/UROMOL_final/RE_intron_1_raw_counts.RDS")
 IntronTeExpU <- IntronTeExpU$counts
-IntronTeExpU = IntronTeExpU[rownames(IntronTeExpU) %in% intrestedElelements,]
+IntronTeExpU <- IntronTeExpU[rownames(IntronTeExpU) %in% intrestedElelements,]
 
 # vst normalization
 library(DESeq2)
 
 # list of count matrices
-exp = list(teExpU, exTeExpU, IntGenTeExpU, IntronTeExpU)
+exp <- list(teExpU, exTeExpU, IntGenTeExpU, IntronTeExpU)
 # empty list to be populated in loop
-vst_res = list()
+vst_res <- list()
 
 for(i in 1:length(exp)){
   # preparing expression sets
