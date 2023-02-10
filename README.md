@@ -1,168 +1,207 @@
-# Format Coveter
+### 1) raw count to vst normalized values in R :
 
-This is a take home interview assignment. Please write a Python program that converts the provided input files to the specified output files.
-Please apply best practices to organize and document your Python program. Please feel free to use third-party libraries (e.g. pandas).
+```R
+# read repeat masker data
+famDat = read.csv("~/LINE1-BLCA/41467_2019_13035_MOESM4_ESM.csv")
+# getting TEs
+rmk = readRDS("~/LINE1-BLCA/rmsk_annotation.RDS")
+intrestedElelements = rmk$repName[rmk$repClass %in% c("LINE", "SINE", "LTR","DNA", "Retroposon")]
 
-## Usage
+# save a subset for later 
+rmkSub <- rmk[rmk$repClass %in% c("LINE", "SINE", "LTR","DNA", "Retroposon"),]
 
-Please write a Python program that can be invoked as a bash command. The program should take one positional argument (`input_manifest`) and one optional argument (`output_directory`).
-If the optional argument `output_directory` is not provided, the default should be the current directory.
+# Reading data 
+# clinical data
+clinicalU <- data.frame(data.table::fread("~/LINE1-BLCA/UROMOL_final/clinU.csv"))
 
-```bash
-format_conveter [--output_directory OUTPUT_DIRECTORY] input_manifest
+# all loci
+teExpU <- readRDS("~/LINE1-BLCA/UROMOL_final/RE_all_1_raw_counts.RDS")
+
+# reading expression data for each loci
+
+# intergenic
+IntGenTeExpU <- readRDS("~/LINE1-BLCA/UROMOL_final/RE_intergenic_1_raw_counts.RDS")
+IntGenTeExpU <- IntGenTeExpU$counts
+IntGenTeExpU = IntGenTeExpU[rownames(IntGenTeExpU) %in% intrestedElelements,]
+
+# exonic
+exTeExpU <- readRDS("~/LINE1-BLCA/UROMOL_final/RE_exon_1_raw_counts.RDS")
+exTeExpU <- exTeExpU$counts
+exTeExpU = exTeExpU[rownames(exTeExpU) %in% intrestedElelements,]
+
+# intronic
+IntronTeExpU <- readRDS("~/LINE1-BLCA/UROMOL_final/RE_intron_1_raw_counts.RDS")
+IntronTeExpU <- IntronTeExpU$counts
+IntronTeExpU = IntronTeExpU[rownames(IntronTeExpU) %in% intrestedElelements,]
+
+# vst normalization
+library(DESeq2)
+
+# list of count matrices
+exp = list(teExpU, exTeExpU, IntGenTeExpU, IntronTeExpU)
+# empty list to be populated in loop
+vst_res = list()
+
+for(i in 1:length(exp)){
+  # preparing expression sets
+  expDatU = exp[[i]]
+  clinU = clinicalU
+  rownames(clinU) <- clinU$UROMOL.ID
+
+  # to see whether all rows of clinical are present in expression datset
+  #all(rownames(clinU) %in% colnames(expDatU))
+  # whether they are in the same order:
+  all(rownames(clinU) == colnames(expDatU))
+  # reorder expression df columns based on sample orders in clinical file
+  expDatU <- expDatU[, rownames(clinU)]
+  #all(rownames(clinU) == colnames(expDatU))
+  
+  # Making DESeqDataSet object which stores all experiment data
+  dds <- DESeqDataSetFromMatrix(countData = round(expDatU),
+                                colData = clinU,
+                                design = ~ 1)
+  
+  # prefilteration: it is not necessary but recommended to filter out low expressed genes
+  keep <- rowSums(counts(dds)) >= 10
+  dds <- dds[keep,]
+  # data tranfromation
+  vsdU <- varianceStabilizingTransformation(dds, blind = TRUE, fitType = "parametric")
+  vst_res[[i]] <- assay(vsdU)
+}
+
+# saveing results into csv files:
+write.csv(vst_res[[1]], "teExpU_vst.csv")
+write.csv(vst_res[[2]], "exTeExpU_vst.csv")
+write.csv(vst_res[[3]], "IntGenTeExpU_vst.csv")
+write.csv(vst_res[[4]], "IntronTeExpU_vst.csv")
+
+# exporting repeat masker ddata
+d <- rmkSub[!duplicated(rmkSub$repName), ]
+write.csv(d[c(3,5,4)], "rmk.csv")
+
 ```
 
-## Input
+### 2) Correlation analysis in Python:
 
-### Manifest
+```python
+import os
+import pandas as pd
+import seaborn as sns
+import numpy as np
+import matplotlib.pyplot as plt
 
-| Sample ID  | Subject ID | MRD Type | Specimen Type | Visit Code | sampleDir                    | mrdDir           |
-| ---------- | ---------- | -------- | ------------- | ---------- | ---------------------------- | ---------------- |
-| 86755_94   | NHL_2_4    | Baseline | Plasma        | C1D1       | /path/to/main_dir/86755_94   | /path/to/mrd_dir |
-| NHL_2.1    | NHL_2_4    | FollowUp | Plasma        | C2D1       | /path/to/main_dir/NHL_2.1    | /path/to/mrd_dir |
-| 126713_131 | NHL_2_4    | Normal   | PBMC          | C1D1       | /path/to/main_dir/126713_131 | /path/to/mrd_dir |
-| 158376_62  | NHL_6_8    | Baseline | Plasma        | C1D1       | /path/to/main_dir/158376_62  | /path/to/mrd_dir |
-| NHL_6.1    | NHL_6_8    | FollowUp | Plasma        | C2D1       | /path/to/main_dir/NHL_6.1    | /path/to/mrd_dir |
-| 165520_66  | NHL_6_8    | Normal   | PBMC          | C1D1       | /path/to/main_dir/165520_66  | /path/to/mrd_dir |
 
-### sampleDir
+# rading files
+os.chdir("C:\\Users\\qaedi\\OneDrive - Queen's University\\Documents\\")
 
-The output from the main pipeline. A set of input files are provided under `data/input/main_dir`.
-Each sample has one sub-folder. The naming convention is `[Sample ID]/qcMetrics/[Sample ID]_qc_metrics_summary.csv`.
-The file contains the QC metrics of each sample.
+all_loc = pd.read_csv("teExpU_vst.csv", index_col=0)
+exon = pd.read_csv("exTeExpU_vst.csv", index_col=0)
+intron = pd.read_csv("IntronTeExpU_vst.csv", index_col=0)
+intergenic = pd.read_csv("IntGenTeExpU_vst.csv", index_col=0)
+rmk = pd.read_csv("rmk.csv")
 
-```bash
-main_dir/
-├── 126713_131
-│   └── qcMetrics
-│       └── 126713_131_qc_metrics_summary.csv
-├── 158376_62
-│   └── qcMetrics
-│       └── 158376_62_qc_metrics_summary.csv
-├── 165520_66
-│   └── qcMetrics
-│       └── 165520_66_qc_metrics_summary.csv
-├── 86755_94
-│   └── qcMetrics
-│       └── 86755_94_qc_metrics_summary.csv
-├── NHL_2.1
-│   └── qcMetrics
-│       └── NHL_2.1_qc_metrics_summary.csv
-└── NHL_6.1
-    └── qcMetrics
-        └── NHL_6.1_qc_metrics_summary.csv
+
+
+# to get LINE elements
+line = rmk.loc[rmk['repClass'] == 'LINE']['repName'].tolist()
+# to get SINE elements
+sine = rmk.loc[rmk['repClass'] == 'SINE']['repName'].tolist()
+# to get DNA elements
+dna = rmk.loc[rmk['repClass'] == 'DNA']['repName'].tolist()
+# to get retroposon elements
+retroposon = rmk.loc[rmk['repClass'] == 'Retroposon']['repName'].tolist()
+# to get LTR elements
+ltr = rmk.loc[rmk['repClass'] == 'LTR']['repName'].tolist()
+
+
+# to create a df with five columns LINE, SINE, DNA, Retroposon and LTR 
+def convert_to_TEclass (df):
+    #line
+    filtered_df = df[df.index.isin(line)] 
+    l = list(filtered_df.mean())
+    #sine
+    filtered_df = df[df.index.isin(sine)] 
+    s = list(filtered_df.mean())
+    #dna
+    filtered_df = df[df.index.isin(dna)] 
+    d = list(filtered_df.mean())
+    #ret
+    filtered_df = df[df.index.isin(retroposon)] 
+    r = list(filtered_df.mean())
+    #ltr
+    filtered_df = df[df.index.isin(ltr)] 
+    lt = list(filtered_df.mean())
+    co = list(filtered_df.columns)
+    res = pd.DataFrame({'LINE': l,
+                            'SINE' : s,
+                            'DNA' : d,
+                            'Retroposon' : r,
+                            'LTR' : lt}, index = co)
+    return(res)
+
+# converting dfs to class wise expression and calculating correlation
+all_loc_class = convert_to_TEclass(all_loc)
+exon_class = convert_to_TEclass(exon)
+intron_class = convert_to_TEclass(intron)
+intergenic_class = convert_to_TEclass(intergenic)
 ```
 
-### mrdDir
+### Visualization
 
-The output from the MRD pipeline. A set of input files are provided under `data/input/mrd_dir`.
-Normal (PBMC) samples are excluded at this stage.
+```python
+# all loci
 
-- Under `reporters`, each plasma sample has one sub-folder. The naming convention is `reporters/[Sample ID]/[Sample ID]_*.vcf`.
-  The files contain SNVs detected in each sample.
-- Under `monitor`, each subject has one sub-folder. The naming convention is `monitor/[Subject ID]/[Sample ID]/snv_out_withsubject.txt`.
-  The file contains the ctDNA level of each plasma sample (e.g. mean AF).
-
-```bash
-mrd_dir/
-├── monitor
-│   ├── NHL_2_4
-│   │   ├── 86755_94
-│   │   │   └── snv_out_withsubject.txt
-│   │   └── NHL_2.1
-│   │       └── snv_out_withsubject.txt
-│   └── NHL_6_8
-│       ├── 158376_62
-│       │   └── snv_out_withsubject.txt
-│       └── NHL_6.1
-│           └── snv_out_withsubject.txt
-└── reporters
-    ├── 158376_62
-    │   ├── 158376_62_fixed.vcf
-    │   ├── 158376_62_germline_annotated.vcf
-    │   └── 158376_62_reporters.vcf
-    ├── 86755_94
-    │   ├── 86755_94_fixed.vcf
-    │   ├── 86755_94_germline_annotated.vcf
-    │   └── 86755_94_reporters.vcf
-    ├── NHL_2.1
-    │   ├── NHL_2.1_fixed.vcf
-    │   └── NHL_2.1_germline_annotated.vcf
-    └── NHL_6.1
-        ├── NHL_6.1_fixed.vcf
-        └── NHL_6.1_germline_annotated.vcf
+# Select only the numerical columns
+df_num = all_loc_class.select_dtypes(include=[np.number])
+# Compute the correlation matrix
+corr = df_num.corr()
+# Plot the correlation matrix using a heatmap from seaborn
+palette = sns.color_palette("RdBu", n_colors=256)
+plt.figure(figsize=(10,10))
+sns.heatmap(corr, annot=True, cmap=palette)
+plt.show()
 ```
 
-## Output
 
-Your Python program should generate three output files. A set of examples are provided under `data/output`.
+```python
+# exonic
 
-1. QC Metrics
+df_num = exon_class.select_dtypes(include=[np.number])
+# Compute the correlation matrix
+corr = df_num.corr()
+# Plot the correlation matrix using a heatmap from seaborn
+palette = sns.color_palette("RdBu", n_colors=256)
+plt.figure(figsize=(10,10))
+sns.heatmap(corr, annot=True, cmap=palette)
+plt.show()
+```
 
-   An comma-delimited aggregated file (`qc_metrics.csv`) based on four `[Sample ID]_qc_metrics_summary.csv` from `Plasma` samples.
-   The columns are described below. The output file should contain QC metrics from four `Plasma` samples, each sample should have three rows (one row for each measurement).
+```python
+# intronic
 
-   | Column Name | Description                                         | Data Source                  |
-   | ----------- | --------------------------------------------------- | ---------------------------- |
-   | PATNUM      |                                                     | `Subject ID` in the manifest |
-   | VISIT       |                                                     | `Visit Code` in the manifest |
-   | ACCSNM      |                                                     | `Sample ID` in the manifest  |
-   | PGRUNID     |                                                     | `MRD Type` in the manifest   |
-   | PGTESTCD    | Genomics test or examination short name             | see Appendix A               |
-   | PGTEST      | Genomics test or examination long name              | see Appendix A               |
-   | BMSRESN     | Numeric result or finding in agreed units           | see Appendix A               |
-   | BMSORESU    | Unit of measurement associated with the test result | see Appendix A               |
+# Select only the numerical columns
+df_num = intron_class.select_dtypes(include=[np.number])
+# Compute the correlation matrix
+corr = df_num.corr()
+# Plot the correlation matrix using a heatmap from seaborn
+palette = sns.color_palette("RdBu", n_colors=256)
+plt.figure(figsize=(10,10))
+sns.heatmap(corr, annot=True, cmap=palette)
+plt.show()
 
-   Appendix A
-   | PGTESTCD | PGTEST                             | BMSRESN                                                                                     | BMSORESU |
-   | -------- | ---------------------------------- | ------------------------------------------------------------------------------------------- | -------- |
-   | DNAIPMS  | DNA Input Mass                     | `InputMass` column in `[Sample ID]_qc_metrics_summary.csv`                                  | ng       |
-   | INSPVL   | Volume Measurement, Input Specimen | `PlasmaVolume` column in `[Sample ID]_qc_metrics_summary.csv`                               | mL       |
-   | SEQOTRT  | Sequencing On-Target Rate          | `ONTARGET_SORTEDBAM_CAPTURE: On-target rate` column in `[Sample ID]_qc_metrics_summary.csv` | %        |
+```
 
-2. MRD Summary
+```python
+#intergenic
 
-   An comma-delimited aggregated file (`mrd_summary.csv`) based on all four `snv_out_withsubject.txt`.
-   The columns are described below. The output file should contain ctDNA level from all four samples.
-   Each `Baseline` plasma sample should have one row that contains the `DCMMNCNC` (mean MMPM (mutant molecule per mL of plasma)) of the sample.
-   Each `FollowUp` plasma sample should have two rows (one row of `DCMMNCNC` and one row of `DCMMNLCB`).
+# Select only the numerical columns
+df_num = intergenic_class.select_dtypes(include=[np.number])
+# Compute the correlation matrix
+corr = df_num.corr()
+# Plot the correlation matrix using a heatmap from seaborn
+palette = sns.color_palette("RdBu", n_colors=256)
+plt.figure(figsize=(10,10))
+sns.heatmap(corr, annot=True, cmap=palette)
+plt.show()
+```
 
-   | Column Name | Description                                         | Data Source                  |
-   | ----------- | --------------------------------------------------- | ---------------------------- |
-   | PATNUM      |                                                     | `Subject ID` in the manifest |
-   | VISIT       |                                                     | `Visit Code` in the manifest |
-   | ACCSNM      |                                                     | `Sample ID` in the manifest  |
-   | PGRUNID     |                                                     | `MRD Type` in the manifest   |
-   | PGTESTCD    | Genomics test or examination short name             | see Appendix B               |
-   | PGTEST      | Genomics test or examination long name              | see Appendix B               |
-   | GNFRESN     | Numeric result or finding in agreed units           | see Appendix B               |
-   | GNFORESU    | Unit of measurement associated with the test result | see Appendix B               |
-
-   Appendix B
-   | PGTESTCD | PGTEST                                   | GNFRESN                                                                           | GNFORESU  |
-   | -------- | ---------------------------------------- | --------------------------------------------------------------------------------- | --------- |
-   | DCMMNCNC | Cancer DNA Molecules, Mean Concentration | `MMPM_MEAN` column in `snv_out_withsubject.txt`                                   | copies/mL |
-   | DCMMNLCB | Cancer DNA Molec, Mean Conc Log Chng Bsl | Calculated as: log10(`DCMMNCNC` of the `Baseline` / `DCMMNCNC` of the `FollowUp`) |           |
-
-3. SNV
-
-   An comma-delimited aggregated file (`snv.csv`) based on all four `[Sample ID]_germline_annotated.vcf`.
-   The columns are described below. The output file should contain SNVs from all four samples.
-
-   | Column Name | Description                                                                   | Data Source                  |
-   | ----------- | ----------------------------------------------------------------------------- | ---------------------------- |
-   | PATNUM      |                                                                               | `Subject ID` in the manifest |
-   | VISIT       |                                                                               | `Visit Code` in the manifest |
-   | ACCSNM      |                                                                               | `Sample ID` in the manifest  |
-   | PGRUNID     |                                                                               | `MRD Type` in the manifest   |
-   | PGTESTCD    | Genomics test or examination short name                                       | see Appendix C               |
-   | PGTEST      | Genomics test or examination long name                                        | see Appendix C               |
-   | GNFRESN     | Numeric result or finding in agreed units                                     | see Appendix C               |
-   | GNFORESU    | Unit of measurement associated with the test result                           | see Appendix C               |
-   | PFGRPID     | ID used to group all tests referring to the same set of pharmacogenomics test | see Appendix C               |
-
-   Appendix C
-   | PGTESTCD | PGTEST           | GNFRESN                                                               | GNFORESU | PFGRPID                                                             |
-   | -------- | ---------------- | --------------------------------------------------------------------- | -------- | ------------------------------------------------------------------- |
-   | UQDPTH   | Read Depth       | `DP` in the `INFO` column of the `[Sample ID]_germline_annotated.vcf` |          | [Sample ID_Chromosome:Position_Reference Allele_Alternative Allele] |
-   | ALFRQ    | Allele Frequency | `AF` in the `INFO` column of the `[Sample ID]_germline_annotated.vcf` | %        | [Sample ID_Chromosome:Position_Reference Allele_Alternative Allele] |
