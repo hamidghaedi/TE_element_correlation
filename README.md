@@ -2,7 +2,6 @@
 
 ```R
 # read repeat masker data
-famDat = read.csv("~/LINE1-BLCA/41467_2019_13035_MOESM4_ESM.csv")
 # getting TEs
 rmk = readRDS("~/LINE1-BLCA/rmsk_annotation.RDS")
 intrestedElelements = rmk$repName[rmk$repClass %in% c("LINE", "SINE", "LTR","DNA", "Retroposon")]
@@ -146,7 +145,7 @@ intron_class = convert_to_TEclass(intron)
 intergenic_class = convert_to_TEclass(intergenic)
 ```
 
-### Visualization
+### 3) Visualization
 
 ```python
 # all loci
@@ -161,7 +160,7 @@ plt.figure(figsize=(10,10))
 sns.heatmap(corr, annot=True, cmap=palette)
 plt.show()
 ```
-
+![alt text](https://github.com/hamidghaedi/TE_element_correlation/blob/main/image/all_loci_in_one_file.png)
 
 ```python
 # exonic
@@ -175,6 +174,7 @@ plt.figure(figsize=(10,10))
 sns.heatmap(corr, annot=True, cmap=palette)
 plt.show()
 ```
+![alt text](https://github.com/hamidghaedi/TE_element_correlation/blob/main/image/exon.png)
 
 ```python
 # intronic
@@ -190,6 +190,7 @@ sns.heatmap(corr, annot=True, cmap=palette)
 plt.show()
 
 ```
+![alt text](https://github.com/hamidghaedi/TE_element_correlation/blob/main/image/intron.png)
 
 ```python
 #intergenic
@@ -204,4 +205,4 @@ plt.figure(figsize=(10,10))
 sns.heatmap(corr, annot=True, cmap=palette)
 plt.show()
 ```
-
+![alt text](https://github.com/hamidghaedi/TE_element_correlation/blob/main/image/intergenic.png)
