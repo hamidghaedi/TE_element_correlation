@@ -210,8 +210,7 @@ plt.show()
 
 ### 4) Summary table
 
- Outer pipes  Cell padding 
-No sorting
+
 |            |            | exon   | intron | intergenic | all_in_one_file |
 | ---------- | ---------- | ------ | ------ | ---------- | --------------- |
 | LINE       | SINE       | \-0.55 | \-0.19 | \-0.44     | \-0.32          |
