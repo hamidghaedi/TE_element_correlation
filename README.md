@@ -1,4 +1,4 @@
-### 1) raw count to vst normalized values in R :
+### 1) Raw count to vst normalized values in R :
 
 ```R
 # read repeat masker data
