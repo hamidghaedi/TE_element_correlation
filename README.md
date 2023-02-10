@@ -206,3 +206,19 @@ sns.heatmap(corr, annot=True, cmap=palette)
 plt.show()
 ```
 ![alt text](https://github.com/hamidghaedi/TE_element_correlation/blob/main/image/intergenic.png)
+
+
+### 4) Summary table
+
+|            |            | exon   | intron | intergenic | all_in_one_file |
+| ---------- | ---------- | ------ | ------ | ---------- | --------------- |
+| LINE       | SINE       | \-0.55 | \-0.19 | \-0.55     | \-0.32          |
+| LINE       | DNA        | 0.56   | 0.08   | 0.56       | \-0.06          |
+| LINE       | Retroposon | \-0.3  | \-0.45 | \-0.3      | \-0.4           |
+| LINE       | LTR        | 0.38   | \-0.5  | 0.38       | \-0.35          |
+| SINE       | DNA        | \-0.46 | \-0.03 | \-0.46     | \-0.22          |
+| SINE       | Retroposon | 0.45   | 0.4    | 0.45       | 0.55            |
+| SINE       | LTR        | \-0.12 | 0.17   | \-0.12     | 0.19            |
+| DNA        | Retroposon | \-0.34 | \-0.67 | \-0.34     | \-0.59          |
+| DNA        | LTR        | 0.54   | \-0.27 | 0.54       | \-0.4           |
+| Retroposon | LTR        | 0.16   | 0.54   | 0.16       | 0.37            |
